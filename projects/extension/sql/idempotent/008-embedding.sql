@@ -22,6 +22,30 @@ set search_path to pg_catalog, pg_temp
 ;
 
 -------------------------------------------------------------------------------
+-- embedding_ollama
+create or replace function ai.embedding_ollama
+( model text
+, dimensions int
+, truncate boolean default null
+, options jsonb default null
+, keep_alive text default null
+) returns jsonb
+as $func$
+    select json_object
+    ( 'implementation': 'ollama'
+    , 'config_type': 'embedding'
+    , 'model': model
+    , 'dimensions': dimensions
+    , 'truncate': truncate
+    , 'options': options
+    , 'keep_alive': keep_alive
+    absent on null
+    )
+$func$ language sql immutable security invoker
+set search_path to pg_catalog, pg_temp
+;
+
+-------------------------------------------------------------------------------
 -- _validate_embedding
 create or replace function ai._validate_embedding(config jsonb) returns void
 as $func$
@@ -40,6 +64,8 @@ begin
     _implementation = config operator(pg_catalog.->>) 'implementation';
     case _implementation
         when 'openai' then
+            -- ok
+        when 'ollama' then
             -- ok
         else
             if _implementation is null then

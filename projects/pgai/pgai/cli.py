@@ -89,18 +89,26 @@ def get_vectorizer(db_url: str, vectorizer_id: int) -> Vectorizer | None:
             return None
         vectorizer = row["vectorizer"]
         embedding = vectorizer["config"]["embedding"]
-        api_key_name = embedding["api_key_name"]
-        api_key = os.getenv(api_key_name, None)
-        if api_key is None:
-            log.error(
-                "API key not found",
-                api_key_name=api_key_name,
-                vectorizer_id=vectorizer_id,
-            )
-            return None
-        secrets: dict[str, str | None] = {api_key_name: api_key}
         vectorizer = Vectorizer(**vectorizer)
-        vectorizer.config.embedding.set_api_key(secrets)
+        if "api_key_name" in embedding:
+            api_key_name = embedding["api_key_name"]
+            api_key = os.getenv(api_key_name, None)
+            if api_key is None:
+                log.error(
+                    "API key not found",
+                    api_key_name=api_key_name,
+                    vectorizer_id=vectorizer_id,
+                )
+                return None
+            secrets: dict[str, str | None] = {api_key_name: api_key}
+            # The Ollama API doesn't need a key, so it doesn't support `set_api_key`
+            set_api_key = getattr(vectorizer.config.embedding, "set_api_key", None)
+            if callable(set_api_key):
+                set_api_key(secrets)
+            else:
+                log.error(
+                    f"cannot set secret value '{api_key_name}' for vectorizer with id: '{vectorizer.id}'"  # noqa
+                )
         return vectorizer
 
 
