@@ -11,7 +11,7 @@ import pytest
 from click.testing import CliRunner
 from psycopg import Connection, sql
 from psycopg.rows import dict_row
-from testcontainers.ollama import OllamaContainer
+from testcontainers.ollama import OllamaContainer # type:ignore
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
@@ -458,7 +458,7 @@ class TestWithOpenAiVectorizer:
 
 
 @pytest.fixture(scope="session")
-def ollama_container() -> OllamaContainer:
+def ollama_container():
     with OllamaContainer(image="ollama/ollama:0.4.3") as ollama:
         ollama.pull_model("nomic-embed-text")
         print(f"{ollama.list_models()}")
@@ -491,7 +491,7 @@ def test_ollama_vectorizer(
     test_params: tuple[int, int, int, str, str],
 ):
     """Test successful processing of vectorizer tasks"""
-    num_items, concurrency, batch_size, _, _ = test_params
+    num_items, concurrency, _, _, _ = test_params
     _, conn = cli_db
     # Insert pre-existing embedding for first item
     with conn.cursor() as cur:
@@ -545,7 +545,7 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
                     base_url => '{ollama_container.get_endpoint()}' 
                 ),
                 chunking => ai.chunking_character_text_splitter('content')
-        )""")  # noqa
+        )""")  # type: ignore
         cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 10000))")
 
     # When running the worker
