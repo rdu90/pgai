@@ -11,7 +11,7 @@ import pytest
 from click.testing import CliRunner
 from psycopg import Connection, sql
 from psycopg.rows import dict_row
-from testcontainers.ollama import OllamaContainer # type:ignore
+from testcontainers.ollama import OllamaContainer  # type:ignore
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
@@ -542,7 +542,7 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
                     'nomic-embed-text:latest',
                     768,
                     truncate => false,
-                    base_url => '{ollama_container.get_endpoint()}' 
+                    base_url => '{ollama_container.get_endpoint()}'
                 ),
                 chunking => ai.chunking_character_text_splitter('content')
         )""")  # type: ignore
@@ -558,7 +558,6 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
         ],
         catch_exceptions=False,
     )
-
 
     assert not result.exception
     assert result.exit_code == 0
