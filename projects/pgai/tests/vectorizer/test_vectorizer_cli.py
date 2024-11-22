@@ -11,6 +11,7 @@ import pytest
 from click.testing import CliRunner
 from psycopg import Connection, sql
 from psycopg.rows import dict_row
+from testcontainers.ollama import OllamaContainer
 from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from pgai.cli import vectorizer_worker
@@ -454,6 +455,13 @@ class TestWithOpenAiVectorizer:
             }
 
 
+@pytest.fixture(scope="session")
+def ollama_container() -> OllamaContainer:
+    with OllamaContainer() as ollama:
+        ollama.pull_model("nomic-embed-text")
+        yield ollama
+
+
 @pytest.mark.parametrize(
     "test_params",
     [
@@ -477,8 +485,8 @@ def test_ollama_vectorizer(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
     configured_ollama_vectorizer_id: int,
-    vcr_: Any,
     test_params: tuple[int, int, int, str, str],
+    ollama_container: OllamaContainer,
 ):
     """Test successful processing of vectorizer tasks"""
     num_items, concurrency, batch_size, _, _ = test_params
@@ -492,26 +500,20 @@ def test_ollama_vectorizer(
             array_fill(0, ARRAY[768])::vector)
         """)
 
-    # When running the worker with cassette matching original test params
-    cassette = (
-        f"ollama-character_text_splitter-chunk_value-"
-        f"items={num_items}-batch_size={batch_size}.yaml"
+    # When running the worker
+    result = CliRunner().invoke(
+        vectorizer_worker,
+        [
+            "--db-url",
+            cli_db_url,
+            "--once",
+            "--vectorizer-id",
+            str(configured_ollama_vectorizer_id),
+            "--concurrency",
+            str(concurrency),
+        ],
+        catch_exceptions=False,
     )
-    logging.getLogger("vcr").setLevel(logging.DEBUG)
-    with vcr_.use_cassette(cassette):
-        result = CliRunner().invoke(
-            vectorizer_worker,
-            [
-                "--db-url",
-                cli_db_url,
-                "--once",
-                "--vectorizer-id",
-                str(configured_ollama_vectorizer_id),
-                "--concurrency",
-                str(concurrency),
-            ],
-            catch_exceptions=False,
-        )
 
     assert not result.exception
     assert result.exit_code == 0
@@ -543,19 +545,16 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
         )""")  # noqa
         cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 10000))")
 
-    # When running the worker with cassette matching original test params
-    cassette = "ollama-character_text_splitter-too-large-chunk_value.yaml"
-    logging.getLogger("vcr").setLevel(logging.DEBUG)
-    with vcr_.use_cassette(cassette):
-        result = CliRunner().invoke(
-            vectorizer_worker,
-            [
-                "--db-url",
-                cli_db_url,
-                "--once",
-            ],
-            catch_exceptions=False,
-        )
+    # When running the worker
+    result = CliRunner().invoke(
+        vectorizer_worker,
+        [
+            "--db-url",
+            cli_db_url,
+            "--once",
+        ],
+        catch_exceptions=False,
+    )
 
     assert not result.exception
     assert result.exit_code == 0
