@@ -26,7 +26,8 @@ set search_path to pg_catalog, pg_temp
 create or replace function ai.embedding_ollama
 ( model text
 , dimensions int
-, truncate boolean default null
+, base_url text default null
+, truncate boolean default true
 , options jsonb default null
 , keep_alive text default null
 ) returns jsonb
@@ -36,6 +37,7 @@ as $func$
     , 'config_type': 'embedding'
     , 'model': model
     , 'dimensions': dimensions
+    , 'base_url': base_url
     , 'truncate': truncate
     , 'options': options
     , 'keep_alive': keep_alive

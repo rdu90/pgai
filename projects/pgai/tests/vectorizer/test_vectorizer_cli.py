@@ -539,7 +539,7 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
                     768,
                     truncate => false
                 ),
-                chunking => ai.chunking_character_text_splitter('content', 4000, 800, '\n')
+                chunking => ai.chunking_character_text_splitter('content')
         )""")  # noqa
         cur.execute("INSERT INTO blog (id, content) VALUES(1, repeat('1', 10000))")
 

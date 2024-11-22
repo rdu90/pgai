@@ -518,6 +518,7 @@ class Ollama(BaseModel, Embedder):
         implementation (Literal["ollama"]): The literal identifier for this
             implementation.
         model (str): The name of the Ollama model used for embeddings.
+        base_url (str): The base url used to access the Ollama API.
         truncate (bool): Truncate input longer than the model's context length
         options (dict): Additional ollama-specific runtime options
         keep_alive (str): How long to keep the model loaded after the request
@@ -525,6 +526,7 @@ class Ollama(BaseModel, Embedder):
 
     implementation: Literal["ollama"]
     model: str
+    base_url: str | None = None
     truncate: bool = True
     options: OllamaOptions | None = None
     keep_alive: str | None = None  # this is only `str` because of the SQL API
@@ -571,12 +573,11 @@ class Ollama(BaseModel, Embedder):
 
     @override
     def _max_chunks_per_batch(self) -> int:
-        # TODO: document this parameter
         # Note: the chosen default is arbitrary - Ollama doesn't place a limit
         return int(os.getenv("OLLAMA_MAX_CHUNKS_PER_BATCH", default="2048"))
 
     async def call_embed_api(self, documents: str | list[str]) -> EmbeddingResponse:
-        response = await ollama.AsyncClient().embed(
+        response = await ollama.AsyncClient(host=self.base_url).embed(
             model=self.model,
             input=documents,
             truncate=self.truncate,
