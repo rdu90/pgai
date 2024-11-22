@@ -595,7 +595,7 @@ class Ollama(BaseModel, Embedder):
         Gets the model details from the Ollama API
         :return:
         """
-        return await ollama.AsyncClient().show(self.model)
+        return await ollama.AsyncClient(host=self.base_url).show(self.model)
 
     async def _context_length(self) -> int | None:
         """
