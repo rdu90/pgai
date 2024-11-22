@@ -152,6 +152,7 @@ def configured_ollama_vectorizer_id(
     source_table: str,
     cli_db: tuple[TestDatabase, Connection],
     test_params: tuple[int, int, int, str, str],
+    ollama_container: OllamaContainer,
 ) -> int:
     """Creates and configures an ollama vectorizer for testing"""
     _, concurrency, batch_size, chunking, formatting = test_params
@@ -163,8 +164,9 @@ def configured_ollama_vectorizer_id(
             SELECT ai.create_vectorizer(
                 '{source_table}'::regclass,
                 embedding => ai.embedding_ollama(
-                    'nomic-embed-text',
-                    768
+                    'nomic-embed-text:latest',
+                    768,
+                    base_url => '{ollama_container.get_endpoint()}'
                 ),
                 chunking => ai.{chunking},
                 formatting => ai.{formatting},
@@ -457,8 +459,9 @@ class TestWithOpenAiVectorizer:
 
 @pytest.fixture(scope="session")
 def ollama_container() -> OllamaContainer:
-    with OllamaContainer() as ollama:
+    with OllamaContainer(image="ollama/ollama:0.4.3") as ollama:
         ollama.pull_model("nomic-embed-text")
+        print(f"{ollama.list_models()}")
         yield ollama
 
 
@@ -486,7 +489,6 @@ def test_ollama_vectorizer(
     cli_db_url: str,
     configured_ollama_vectorizer_id: int,
     test_params: tuple[int, int, int, str, str],
-    ollama_container: OllamaContainer,
 ):
     """Test successful processing of vectorizer tasks"""
     num_items, concurrency, batch_size, _, _ = test_params
@@ -526,7 +528,7 @@ def test_ollama_vectorizer(
 def test_ollama_vectorizer_handles_chunk_failure_correctly(
     cli_db: tuple[TestDatabase, Connection],
     cli_db_url: str,
-    vcr_: Any,
+    ollama_container: OllamaContainer,
 ):
     """Test successful processing of vectorizer tasks"""
     _, conn = cli_db
@@ -534,12 +536,13 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
     # Set up vectorizer which will fail to embed chunk
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("CREATE TABLE blog(id bigint primary key, content text);")
-        cur.execute("""SELECT ai.create_vectorizer(
+        cur.execute(f"""SELECT ai.create_vectorizer(
                 'blog',
                 embedding => ai.embedding_ollama(
-                    'nomic-embed-text',
+                    'nomic-embed-text:latest',
                     768,
-                    truncate => false
+                    truncate => false,
+                    base_url => '{ollama_container.get_endpoint()}' 
                 ),
                 chunking => ai.chunking_character_text_splitter('content')
         )""")  # noqa
@@ -555,6 +558,7 @@ def test_ollama_vectorizer_handles_chunk_failure_correctly(
         ],
         catch_exceptions=False,
     )
+
 
     assert not result.exception
     assert result.exit_code == 0
