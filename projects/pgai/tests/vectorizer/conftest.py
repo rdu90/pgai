@@ -17,10 +17,9 @@ DIMENSION_COUNT = 1536
 @pytest.fixture(autouse=True)
 def __env_setup():  # type:ignore
     # Capture the current environment variables to restore after the test. The
-    # lambda function sets an evironment variable for using the secrets. We
+    # lambda function sets an environment variable for using the secrets. We
     # need to clear the environment after a test runs.
 
-    load_dotenv()
     original_env = os.environ.copy()
 
     # Use the existing tiktoken cache
@@ -66,11 +65,12 @@ def postgres_container():
     image = DockerImage(path=extension_dir, tag="pgai-test-db").build(  # type: ignore
         target="pgai-test-db"
     )
+    openai_api_key = os.environ["OPENAI_API_KEY"]
     with PostgresContainer(
         image=str(image),
         username="tsdbquerier",
         password="my-password",
         dbname="tsdb",
         driver=None,
-    ).with_env("OPENAI_API_KEY", os.environ["OPENAI_API_KEY"]) as postgres:
+    ).with_env("OPENAI_API_KEY", openai_api_key) as postgres:
         yield postgres
